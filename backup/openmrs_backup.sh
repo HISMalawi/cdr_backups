@@ -4,6 +4,7 @@
 # Define the file path where the service files for EMR are   ##
 ###############################################################
 file_path="/etc/systemd/system/emr-api.service"
+emr_file_path="/var/www/EMR-API"
 
 #############################################################################################################
 # Use grep to find the line containing 'ExecStart' and '-e', then use awk to extract the string after '-e' ##
@@ -43,16 +44,16 @@ find "$backup_folder" -type f -name "openmrs_*gz" -mtime +3 -exec rm {} \;
 #############################################################
 #
 #
-if [ ! -f /var/www/EMR-API/config/database.yml ]; then
+if [ ! -f $emr_file_path/config/database.yml ]; then
     echo "ERROR : File database.yml not found. Consult HIS Officer "
     exit
 else
     echo "SUCCESS : File database.yml found . Checking for database.yml file "
 fi
 
-#######################################################################
-#function to use to parse database.yml and get values for development #
-#######################################################################
+##################################################################################
+#function to use to parse database.yml and get values for configured environment #
+##################################################################################
 #
 #
 function parse_yaml {
@@ -77,7 +78,7 @@ function parse_yaml {
 #######################
 #
 #
-parse_yaml /var/www/EMR-API/config/database.yml > database_yaml_values.txt
+parse_yaml $emr_file_path/config/database.yml > database_yaml_values.txt
 
 
 
@@ -103,17 +104,17 @@ fi
 #
 if [[ "$db" == "" ]]; then
 
-   echo "ERROR : No database configured for development in \"/var/www/EMR-API/config/database.yml\".. Process exiting.."
+   echo "ERROR : No database configured for development in \"$emr_file_path/config/database.yml\".. Process exiting.."
    exit 1
 else
-   echo "SUCCESS : $db configured in \"/var/www/EMR-API/config/database.yml\"... "
+   echo "SUCCESS : $db configured in \"$emr_file_path/config/database.yml\"... "
 fi
 
 #############################################################
 # Check if database.yml is present. If not, do not proceed   #
 #############################################################
 
-if [ ! -f /var/www/EMR-API/config/database.yml ]; then
+if [ ! -f $emr_file_path/config/database.yml ]; then
 	  echo "ERROR: File database.yml not found. Consult HIS Officer."
 	    exit
     else
@@ -124,14 +125,14 @@ fi
 # Extracting username and password from database.yml        #
 ############################################################
 
-username=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{sub(/^[[:blank:]]*username:[[:blank:]]*/, ""); print; exit}' /var/www/EMR-API/config/database.yml)
-password=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{getline; if ($1 ~ /^[[:blank:]]*password:[[:blank:]]*$/) {print $2; exit}}' /var/www/EMR-API/config/database.yml)
+username=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{sub(/^[[:blank:]]*username:[[:blank:]]*/, ""); print; exit}' $emr_file_path/config/database.yml)
+password=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{getline; if ($1 ~ /^[[:blank:]]*password:[[:blank:]]*$/) {print $2; exit}}' $emr_file_path/config/database.yml)
 
 if [ -z "$username" ] || [ -z "$password" ]; then
-	  echo "ERROR: Username or password not found in /var/www/EMR-API/config/database.yml. Process exiting."
+	  echo "ERROR: Username or password not found in $emr_file_path/config/database.yml. Process exiting."
 	    exit 1
     else
-	      echo "SUCCESS: Username and password configured in /var/www/EMR-API/config/database.yml."
+	      echo "SUCCESS: Username and password configured in $emr_file_path/config/database.yml."
 fi
 
 # Use the "$username" and "$password" variables as needed for further operations.

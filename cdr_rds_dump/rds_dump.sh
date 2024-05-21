@@ -14,7 +14,7 @@
 #
 #
 #
-
+emr_path="/var/www/EMR-API"
 db_file="./rds_table_structure.csv"
 sql_separator=","
 program_id="01"
@@ -28,14 +28,14 @@ declare -a meta_tables=("program_workflow_state" "pharmacies")            #These
 # Extracting username and password from database.yml        #
 ############################################################
 
-db_user=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{sub(/^[[:blank:]]*username:[[:blank:]]*/, ""); print; exit}' /var/www/EMR-API/config/database.yml)
-db_pwd=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{getline; if ($1 ~ /^[[:blank:]]*password:[[:blank:]]*$/) {print $2; exit}}' /var/www/EMR-API/config/database.yml)
+db_user=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{sub(/^[[:blank:]]*username:[[:blank:]]*/, ""); print; exit}' $emr_path/config/database.yml)
+db_pwd=$(awk '/^[[:blank:]]*username:[[:blank:]]*/{getline; if ($1 ~ /^[[:blank:]]*password:[[:blank:]]*$/) {print $2; exit}}' $emr_path/config/database.yml)
 
 if [ -z "$db_user" ] || [ -z "$db_pwd" ]; then
-          echo "ERROR: Username or password not found in /var/www/EMR-API/config/database.yml. Process exiting."
+          echo "ERROR: Username or password not found in $emr_path/config/database.yml. Process exiting."
             exit 1
     else
-              echo "SUCCESS: Username and password configured in /var/www/EMR-API/config/database.yml."
+              echo "SUCCESS: Username and password configured in $emr_path/config/database.yml."
 fi
 
 
@@ -103,7 +103,7 @@ fi
 #############################################################
 #
 #
-if [ ! -f /var/www/EMR-API/config/database.yml ]; then
+if [ ! -f $emr_path/config/database.yml ]; then
     echo "ERROR : File database.yml not found. Consult HIS Officer "
     exit
 else
@@ -122,9 +122,9 @@ else
     echo "SUCCESS : Last generation date file found"
 fi
 
-#######################################################################
-#function to use to parse database.yml and get values for development #
-#######################################################################
+###################################################################################
+#function to use to parse database.yml and get values for the configured EMR mode #
+###################################################################################
 #
 #
 function parse_yaml {
@@ -149,7 +149,7 @@ function parse_yaml {
 #######################
 #
 #
-parse_yaml /var/www/EMR-API/config/database.yml > database_yaml_values.txt
+parse_yaml $emr_path/config/database.yml > database_yaml_values.txt
 
 
 ##################################################################################################
@@ -174,10 +174,10 @@ fi
 #
 if [[ "$db" == "" ]]; then
 
-   echo "ERROR : No database configured for development in \"/var/www/EMR-API/config/database.yml\".. Process exiting.."
+   echo "ERROR : No database configured for development in \"$emr_path/config/database.yml\".. Process exiting.."
    exit 1
 else
-   echo "SUCCESS : $db configured in \"/var/www/EMR-API/config/database.yml\"... Checking if MySQL service is running "
+   echo "SUCCESS : $db configured in \"$emr_path/config/database.yml\"... Checking if MySQL service is running "
 fi
 
 #################################################################
@@ -432,7 +432,7 @@ done
 #
 #
 gzip $dump_file_name
-mv -f ./*.gz /var/www/EMR-API/log/
+mv -f ./*.gz $emr_path/log/
 #####################################
 #updating last generation date file #
 #####################################
