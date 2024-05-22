@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ###############################################################
 # Define the file path where the service files for EMR are   ##
