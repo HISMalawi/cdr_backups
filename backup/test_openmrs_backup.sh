@@ -144,6 +144,81 @@ fi
 
 name=$(mysql -u$username -p$password $db -se "select concat(location_id,'_',replace(replace(replace(lower(name),' ','_'),')',''),'(','')) name from $db.location l where location_id in (select property_value from $db.global_property gp where lower(property)='current_health_center_id')")
 
+quarter_name=$(mysql -u$username -p$password -D  $db -se "SELECT CONCAT('Q', QUARTER(DATE_SUB(NOW(), INTERVAL 3 MONTH)),'_',YEAR(DATE_SUB(NOW(), INTERVAL 3 MONTH)))")
+
+q_object=$(mysql -u$username -p$password -D $db  -se "select concat(replace(replace(replace(replace(replace(lower(name),' ','_'),')',''),'(',''),'''',''),'/',''), '_', location_id, 'general_stats_rq_', '$quarter_name') site_name from $db.location l where location_id in (select property_value from $db.global_property gp where lower(property)= 'current_health_center_id')")
+
+echo "$q_object to be created in the next step"
+
+mysql -u$username -p$password $db -se "drop table if exists $q_object"
+
+mysql -u$username -p$password $db -se "create table if not exists $q_object (record_datetime datetime not null, table_name text null, row_counts text null, max_recorded_date text null )"
+
+
+# Define the array of tables
+trans_tables=("obs" "encounter" "users" "drug_order" "orders" "patient" "patient_identifier" "patient_program" "patient_state" "person" "person_address" "person_attribute" "person_name" "global_property" "location")
+
+
+# Check for missing tables
+for table in "${trans_tables[@]}"
+do
+  if ! mysql -u$username -p$password -e "use $db; describe $table" &> /dev/null; then
+    echo "DUMP GENERATION MAY NOT CONTINUE BECAUSE KEY TABLES : $table is missing or corrupt. CONSULT CDR Team for Assistance!!!!!!"
+    exit 1
+  fi
+done
+
+echo "All required tables are present in the database"
+
+
+
+
+# Loop through each table
+for table in "${trans_tables[@]}"
+do
+    # Assign table name to a variable
+    table_name=$table
+
+    # Execute query to get record count
+    record_counts=$(mysql -u$username -p$password -D $db -se "select count(*) from $table")
+
+    # Execute query to get max recorded date based on table
+    if [ $table = "obs" ]; then
+        max_recorded_date=$(mysql -u$username -p$password -D $db -se "select max(cast(value_datetime as date)) from obs")
+    elif [ $table = "encounter" ]; then
+        max_recorded_date=$(mysql -u$username -p$password -D $db -se "select max(cast(encounter_datetime as date)) from encounter")
+    elif [ $table = "orders" ]; then
+        max_recorded_date=$(mysql -u$username -p$password -D $db -se "select max(cast(date_created as date)) from orders")
+    else
+        max_recorded_date='NULL'
+    fi
+
+    # Insert values into q_objects table
+    mysql -u$username -p$password -D $db -se "INSERT INTO $q_object(record_datetime,table_name, row_counts, max_recorded_date) VALUES (CURRENT_TIMESTAMP(),'$table_name', '$record_counts','$max_recorded_date')"
+done
+
+
+
+trans_tables+=(" $q_object")
+
+
+# Construct the mysqldump command
+mysqldump_cmd="mysqldump -u$username -p$password $db"
+
+# Add each table to the mysqldump command
+for table in "${trans_tables[@]}"; do
+    mysqldump_cmd+=" $table"
+done
+
+
+# Execute the mysqldump command
+$mysqldump_cmd | gzip -c > $emr_file_path/log/openmrs_${name}.sql.gz
+
+# Print the command for reference (optional)
+echo "Executed command: $mysqldump_cmd"
+
+
+
 mysqldump --routines -u$username -p$password $db | gzip -c > ~/backup/openmrs_${name}_$(date +%d-%m-%Y).sql.gz 
 
 rm database_yaml_values.txt
@@ -269,9 +344,6 @@ fi
 mysqldump  --routines -u$username -p$password $db | gzip -c > ${db}_${name}_$(date +%d-%m-%Y).sql.gz
 rm database_yaml_values.txt
 
-rm /var/www/BHT-EMR-API/log/openmrs*.gz
-
-cp   ~/backup/openmrs_${name}_$(date +%A).sql.gz  /var/www/BHT-EMR-API/log/openmrs_${name}.sql.gz
 
 echo done
 
